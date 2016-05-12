@@ -1,10 +1,45 @@
+addons: {}
+after_success:
+- export JAVA_TOOL_OPTIONS=-javaagent:$DFB_PROJECT_DIR/jacoco-agent-jdk8.jar=destfile=$DFB_PROJECT_DIR/jacoco.exec
+- ./mvnw test -Djacoco.skip=true -Dcobertura.skip=true -Dmaven.clover.skip=true --fail-at-end
+  --update-snapshots clean install
+- ./df-build.sh
+- env > env.file
+- curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install |
+  bash
+- artifacts upload --key $AWS_ACCESS_KEY_ID --secret $AWS_SECRET_ACCESS_KEY --bucket
+  $DFB_AWS_BUCKET --target-paths $DFB_AWS_BUILD_PATH $(git ls-files -oi -x *.exec)
+- artifacts upload --key $AWS_ACCESS_KEY_ID --secret $AWS_SECRET_ACCESS_KEY --bucket
+  $DFB_AWS_BUCKET --target-paths $DFB_AWS_BUILD_PATH ${DFB_PROJECT_DIR}/env.file
+before_install:
+- wget -O beforebuild.sh $DFB_AGENTS_URL/beforebuild.sh
+- chmod a+x beforebuild.sh
+- ./beforebuild.sh
 cache:
   directories:
   - $HOME/.m2
+env:
+  global:
+  - DFB_PROJECT_DIR=$(pwd)
+  - TMP_PROJECT_PARENT_DIR=$(dirname $DFB_PROJECT_DIR)
+  - DFB_BUILD_ID=$TRAVIS_BUILD_ID
+  - DFB_PRODUCT_NAME=$(basename $DFB_PROJECT_DIR)
+  - DFB_OWNER_NAME=$(basename $TMP_PROJECT_PARENT_DIR)
+  - DFB_PRODUCT_KEY=${DFB_OWNER_NAME}_${DFB_PRODUCT_NAME}
+  - DFB_AWS_BUCKET=aline-external-ci-artifacts
+  - DFB_AGENTS_URL=https://s3.amazonaws.com/${DFB_AWS_BUCKET}/agents
+  - DFB_PACKAGING_URL=s3://${DFB_AWS_BUCKET}/artifacts/travis/
+  - DFB_AWS_BUILD_PATH=/artifacts/travis/${DFB_PRODUCT_KEY}/${DFB_BUILD_ID}/output/
+  - AWS_ACCESS_KEY_ID=AKIAIIU2LBOCCKXAIFZQ
+  - AWS_SECRET_ACCESS_KEY=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
+  - DFB_JTO=-javaagent:${DFB_PROJECT_DIR}/dfbuild-agent.jar=PACKAGING_BASE_URI=$DFB_PACKAGING_URL,PRODUCT_KEY=$DFB_PRODUCT_KEY/,BUILD_KEY=$DFB_BUILD_ID/,MODULES_KEY=modules/,START_TIME=0,BUILD_BASE_DIR=$DFB_PROJECT_DIR
+install: 'true'
 jdk:
 - oraclejdk8
 language: java
-script: ./mvnw --fail-at-end --update-snapshots clean install
-notifications:
-  slack:
-    secure: oba1C58doySmrOhh1vFxccgp9JCQi1cNBKhC0YD5I9uk44eXAsOs8GjIs3wqfReKkSf4e9N8jRpbQWoIayQV/qRvkRJnpxuFv5q3Rtr4+S50Ie2IfrghRpphV7uyL3ktswyPHLTLVNxEW1cext9ZDOMb3S+Z4lwCz0gBjf9cZWGzBIsj6Wb0cr31Jo/xKuvBTwxRdTJGh20CvHXpXYeB/dNbY5BmlDP1Ys8dtP0/NrWTJ5/MG2BubaQ/xuUA+aw573XaYA+3t6vDVEfedNcDO8oNcQgp9zpp3p5Z4pipqKGyrqQAp/xnRt73TGRl6XQ9t/ZGdOSz6vSHaaVhtBKkOpoW8DxQ9nq9GWOK7R9r1ok919blzSfZvjJ5jUVM931XaUhIfWbv1f/UGgFRJSJ/G81s27trd0GCYXPXyq1tFVQBp/CxrBwuOfPtE7rTwFaFM4eo6tgwkbHFW4ZXJWk5MXWhkgRM7Frqq5mMophz6YT2suuEYgYVM7f0l2lXAC/O7PkobMzbeDRiMwREx5KBKGd6GFpmKfUua8b75nOcn9UB4aDtdCb70LwBCVotvQT0rKk1zxLp28iNilk1HQubfOG9S5gjjuqsXPfHgsmzA2CnQbj1yjansGXA8uq0NBOBUo2lvopsXGBw0tJNj53DY5sxd3jXaNIYQjsGT2knHp0=
+notifications: {}
+script:
+- export JAVA_TOOL_OPTIONS=$DFB_JTO
+- ./mvnw -Djacoco.skip=true -Dcobertura.skip=true -Dmaven.clover.skip=true --fail-at-end
+  --update-snapshots clean install
+# Modified by IntegrationTestInstrumentation at 2016-05-12 20:07:49.334215
